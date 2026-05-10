@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moon Viewer — Advanced Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; font-family: 'Inter', sans-serif; color: white; }
+    canvas { display: block; outline: none; }
+
+    /* Top Center Container */
+    #top-center-container {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .glass-badge {
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 6px 15px;
+      font-size: 1.0rem;
+      font-weight: 500;
+      color: #e0e0e0;
+      text-align: center;
+      transition: color 0.3s ease;
+    }
+
+    /* Tooltip */
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      transform: translate(-50%, -120%);
+      z-index: 10;
+      line-height: 1.4;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    #tooltip.visible { opacity: 1; }
+
+    /* Top Left Overlay (Filters & Legend) */
+    #top-left-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 5;
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      max-width: 300px;
+    }
+    .filter-btn {
+      background: rgba(20, 25, 40, 0.8);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover { background: rgba(50, 60, 80, 0.8); }
+    .filter-btn.active {
+      background: rgba(255,255,255,0.9);
+      color: black;
+      font-weight: bold;
+      border-color: white;
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .legend {
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      width: fit-content;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    #controls-hint {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.6);
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #ddd;
+      pointer-events: none;
+      z-index: 5;
+      text-align: right;
+      line-height: 1.6;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(5px);
+    }
+    .key { background: #333; padding: 2px 6px; border-radius: 4px; color: #fff; font-family: monospace; border: 1px solid #555;}
+    
+    /* Reset Button */
+    #resume-orbit-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(40, 50, 70, 0.8);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+      backdrop-filter: blur(5px);
+    }
+    #resume-orbit-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #resume-orbit-btn:hover { background: rgba(70, 90, 120, 0.9); box-shadow: 0 0 12px rgba(255,255,255,0.2); }
+
+    /* Info Panel - MISSION INSIGHT SYSTEM */
+    #infoPanel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 0;
+      background: rgba(5, 10, 25, 0.85);
+      color: white;
+      border-radius: 12px;
+      font-family: 'Inter', Arial, sans-serif;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: none;
+      z-index: 8;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    #infoPanel::-webkit-scrollbar { width: 4px; }
+    #infoPanel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .info-header {
+      padding: 14px 16px 10px;
+    }
+    #infoPanel h2 {
+      margin: 0 0 4px 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .info-agency {
+      font-size: 12px;
+      color: #8899aa;
+      margin: 0;
+    }
+
+    #missionImage {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+    }
+
+    .info-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(255,255,255,0.05);
+      margin: 0;
+    }
+    .info-meta-cell {
+      padding: 8px 12px;
+      background: rgba(5, 10, 25, 0.9);
+    }
+    .info-meta-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #667788;
+      margin-bottom: 2px;
+    }
+    .info-meta-value {
+      font-size: 13px;
+      color: #e0e0e0;
+      font-weight: 500;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-success { background: rgba(0,200,100,0.2); color: #00ff88; }
+    .status-partial { background: rgba(255,170,0,0.2); color: #ffaa00; }
+    .status-failed  { background: rgba(255,68,68,0.2);  color: #ff4444; }
+
+    .info-achievement {
+      padding: 10px 14px;
+      background: rgba(0, 204, 255, 0.06);
+      border-left: 3px solid #00ccff;
+      margin: 0;
+    }
+    .info-achievement .info-meta-label { color: #00ccff; }
+    .info-achievement .info-meta-value {
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .info-body {
+      padding: 10px 14px;
+    }
+    .info-body p {
+      font-size: 12.5px;
+      margin: 0 0 8px 0;
+      color: #c0c8d0;
+      line-height: 1.5;
+    }
+
+    .info-footer {
+      padding: 8px 14px 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+    }
+    #missionLight {
+      font-weight: 600;
+      font-size: 12px;
+      color: #ffda66;
+      margin: 0;
+    }
+    #missionDistance {
+      font-size: 12px;
+      color: #88ccff;
+      margin: 0;
+    }
+
+    /* Image Gallery */
+    #imageGallery {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 4px 10px 6px;
+      gap: 4px;
+      align-items: center;
+    }
+    .gallery-thumb {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      cursor: pointer;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      opacity: 0.7;
+      transition: opacity 0.2s, border-color 0.2s;
+    }
+    .gallery-thumb:hover,
+    .gallery-thumb.active {
+      opacity: 1;
+      border-color: #00ccff;
+    }
+    #slideshowBtn {
+      background: rgba(0,204,255,0.15);
+      border: 1px solid rgba(0,204,255,0.3);
+      color: #00ccff;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      margin-left: auto;
+      transition: background 0.2s;
+    }
+    #slideshowBtn:hover { background: rgba(0,204,255,0.25); }
+    #slideshowBtn.playing {
+      background: rgba(255,100,100,0.2);
+      border-color: rgba(255,100,100,0.4);
+      color: #ff6666;
+    }
+
+    /* Lighting Status */
+    .lighting-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .light-day      { background: rgba(255,220,80,0.15); color: #ffdc50; }
+    .light-terminator { background: rgba(180,140,255,0.15); color: #b48cff; }
+    .light-night    { background: rgba(100,120,180,0.15); color: #7888bb; }
+
+    /* Fullscreen Image Viewer */
+    #fullscreenViewer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.92);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      cursor: zoom-out;
+    }
+    #fullscreenViewer img {
+      max-width: 92%;
+      max-height: 90%;
+      border-radius: 8px;
+      box-shadow: 0 0 60px rgba(0,0,0,0.6);
+    }
+    .fs-nav {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      font-size: 28px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .fs-nav:hover { background: rgba(255,255,255,0.2); }
+    #fsPrev { left: 16px; }
+    #fsNext { right: 16px; }
+    #fsClose {
+      position: absolute;
+      top: 16px; right: 20px;
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 28px;
+      cursor: pointer;
+    }
+    #fsClose:hover { color: #fff; }
+    #fsCounter {
+      position: absolute;
+      bottom: 20px;
+      color: #888;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Performance Mode Toggle */
+    #perf-mode-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 25, 40, 0.85);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #ccc;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      z-index: 10;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+    }
+    #perf-mode-btn:hover { background: rgba(50, 60, 80, 0.9); }
+    #perf-mode-btn.active {
+      background: rgba(0, 200, 100, 0.25);
+      border-color: #00cc66;
+      color: #00ff88;
+      box-shadow: 0 0 12px rgba(0,255,136,0.2);
+    }
+
+    /* FPS Counter */
+    #fps-counter {
+      position: absolute;
+      bottom: 20px;
+      right: 70px;
+      background: rgba(0,0,0,0.6);
+      color: #00ff88;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      z-index: 10;
+      display: none;
+    }
+
+    /* ── Mobile Responsive ─────────────────────────── */
+    @media (max-width: 768px) {
+      /* Bigger filter buttons */
+      .filter-btn {
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        border-radius: 6px;
+      }
+      .filter-buttons {
+        max-width: 100%;
+        gap: 8px;
+      }
+
+      /* Top left panel */
+      #top-left-panel {
+        top: 10px;
+        left: 10px;
+        max-width: calc(100vw - 90px);
+      }
+
+      /* Legend */
+      .legend {
+        font-size: 0.95rem;
+        padding: 8px 12px;
+      }
+
+      /* HUD badges */
+      .glass-badge {
+        font-size: 0.85rem;
+        padding: 5px 10px;
+      }
+
+      /* Hide keyboard hints on mobile */
+      #controls-hint {
+        display: none !important;
+      }
+
+      /* Info panel: full width bottom sheet */
+      #infoPanel {
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 45vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 16px 20px;
+        padding-bottom: 24px;
+      }
+      #infoPanel h2 {
+        font-size: 20px;
+      }
+      #infoPanel p {
+        font-size: 14px;
+      }
+
+      /* Tooltip */
+      #tooltip {
+        font-size: 1rem;
+        padding: 10px 14px;
+      }
+
+      /* Resume button */
+      #resume-orbit-btn {
+        bottom: 12px;
+        right: 12px;
+        padding: 14px 22px;
+        font-size: 1rem;
+        border-radius: 10px;
+      }
+
+      /* Perf toggle */
+      #perf-mode-btn {
+        top: 12px;
+        right: 10px;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+      }
+
+      /* FPS counter */
+      #fps-counter {
+        bottom: 12px;
+        right: 12px;
+      }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+  <!-- Expanded Top HUD Telemetry -->
+  <div id="top-center-container">
+    <div style="display: flex; gap: 8px;">
+      <div id="top-phase-display" class="glass-badge">Phase: New Moon</div>
+      <div id="top-eclipse-display" class="glass-badge" style="color:#888;">Eclipse: None</div>
+    </div>
+    <div id="top-signal-display" class="glass-badge" style="background: rgba(10, 15, 30, 0.4); border: none; font-size: 0.85rem; color: #00ccff;">Signal Delay: 1.28s</div>
+  </div>
+  
+  <div id="top-left-panel">
+    <div class="filter-buttons" id="filter-buttons">
+      <button class="filter-btn active" data-org="ALL">ALL</button>
+      <button class="filter-btn" data-org="NASA">NASA</button>
+      <button class="filter-btn" data-org="USSR">USSR</button>
+      <button class="filter-btn" data-org="China">China</button>
+      <button class="filter-btn" data-org="India">India</button>
+      <button class="filter-btn" data-org="Japan">Japan</button>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-color" style="background:#00ff88;"></div>NASA</div>
+      <div class="legend-item"><div class="legend-color" style="background:#ff4444;"></div>USSR</div>
+      <div class="legend-item"><div class="legend-color" style="background:#ffaa00;"></div>China</div>
+      <div class="legend-item"><div class="legend-color" style="background:#00aaff;"></div>India</div>
+      <div class="legend-item"><div class="legend-color" style="background:#66ccff;"></div>Japan</div>
+    </div>
+  </div>
+
+  <div id="controls-hint">
+    <div style="margin-top:6px"><span class="key">G</span> Toggle Grid</div>
+    <div style="margin-top:6px; font-size: 0.75rem; color:#aaa;">Double-click clear focus</div>
+  </div>
+
+  <button id="perf-mode-btn">⚡ Perf: OFF</button>
+  <div id="fps-counter"></div>
+
+  <div id="tooltip"></div>
+  
+  <div id="infoPanel">
+    <div class="info-header">
+      <h2 id="missionName"></h2>
+      <p class="info-agency" id="missionAgency"></p>
+    </div>
+    <img id="missionImage" />
+    <div id="imageGallery">
+      <button id="slideshowBtn">▶ Slide</button>
+    </div>
+    <div class="info-meta-grid">
+      <div class="info-meta-cell">
+        <div class="info-meta-label">Type</div>
+        <div class="info-meta-value" id="missionType"></div>
+      </div>
+      <div class="info-meta-cell">
+        <div class="info-meta-label">Status</div>
+        <div class="info-meta-value" id="missionStatus"></div>
+      </div>
+      <div class="info-meta-cell">
+        <div class="info-meta-label">Duration</div>
+        <div class="info-meta-value" id="missionDuration"></div>
+      </div>
+      <div class="info-meta-cell">
+        <div class="info-meta-label">Year</div>
+        <div class="info-meta-value" id="missionYear"></div>
+      </div>
+    </div>
+    <div class="info-achievement">
+      <div class="info-meta-label">⭐ Achievement</div>
+      <div class="info-meta-value" id="missionAchievement"></div>
+    </div>
+    <div class="info-body">
+      <p id="missionDesc"></p>
+      <p id="missionCoords" style="font-size:11px; color:#667788;"></p>
+    </div>
+    <div class="info-footer">
+      <p id="missionLight"></p>
+      <p id="lightingStatus"></p>
+      <p id="missionDistance"></p>
+    </div>
+  </div>
+
+  <!-- Fullscreen Image Viewer -->
+  <div id="fullscreenViewer">
+    <button id="fsClose">✕</button>
+    <button class="fs-nav" id="fsPrev">❮</button>
+    <img id="fullscreenImg" />
+    <button class="fs-nav" id="fsNext">❯</button>
+    <div id="fsCounter"></div>
+  </div>
+
+  <button id="resume-orbit-btn">Resume Orbit</button>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
