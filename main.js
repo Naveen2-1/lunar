@@ -20,10 +20,10 @@ const mobileConfig = {
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000); 
 
-const earthPos = new THREE.Vector3(-6, 0, 0);
+const earthPos = new THREE.Vector3(8, 2, -6);
 
-const defaultCameraPos = new THREE.Vector3(-10, 2, 2);
-const defaultTargetPos = new THREE.Vector3().copy(earthPos);
+const defaultCameraPos = new THREE.Vector3(0, 0, 4.8);
+const defaultTargetPos = new THREE.Vector3(0, 0, 0);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, isMobile ? 0.5 : 0.1, 1000);
 camera.position.copy(defaultCameraPos);
@@ -38,16 +38,27 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = isMobile ? 0.12 : 0.08;
+controls.dampingFactor = 0.05;
 controls.enablePan = false;
-controls.minDistance = isMobile ? 1.5 : 1.0;
-controls.maxDistance = isMobile ? 12 : 20;
+controls.rotateSpeed = 0.8;
+controls.zoomSpeed = 1.0;
+controls.minDistance = 1.8;
+controls.maxDistance = 10;
 controls.target.copy(defaultTargetPos);
 if (isMobile) {
-  controls.rotateSpeed = 0.8;
-  controls.zoomSpeed = 1.2;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE };
 }
+
+let focusActive = false;
+const focusCameraPos = new THREE.Vector3();
+const focusTargetPos = new THREE.Vector3();
+
+let userIsInteracting = false;
+controls.addEventListener('start', () => { 
+  userIsInteracting = true; 
+  focusActive = false; 
+});
+controls.addEventListener('end', () => { userIsInteracting = false; });
 
 // ── Celestial Hierarchy ─────────────────────────────────────────
 let globalMoonSurface = null; 
@@ -99,6 +110,7 @@ const earthMaterial = new THREE.MeshStandardMaterial({
 });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
 earth.position.copy(earthPos);
+earth.scale.setScalar(0.5);
 earth.castShadow = !isMobile;
 earth.receiveShadow = !isMobile;
 scene.add(earth);
@@ -489,35 +501,16 @@ function resumeOrbit() {
   // Fade lights back to full
   if (window.gsap) {
     gsap.to(sunLight, { intensity: 2.0, duration: 1.0 });
-    
     gsap.killTweensOf(controls.target);
     gsap.killTweensOf(camera.position);
-
-    gsap.to(camera.position, {
-      duration: 1.5,
-      x: defaultCameraPos.x,
-      y: defaultCameraPos.y,
-      z: defaultCameraPos.z,
-      ease: "power2.inOut",
-      onComplete: () => {
-        controls.enabled = true;
-      }
-    });
-
-    gsap.to(controls.target, {
-      duration: 1.5,
-      x: defaultTargetPos.x,
-      y: defaultTargetPos.y,
-      z: defaultTargetPos.z,
-      ease: "power2.inOut",
-      onUpdate: () => controls.update()
-    });
   } else {
     sunLight.intensity = 2.0;
-    camera.position.copy(defaultCameraPos);
-    controls.target.copy(defaultTargetPos);
-    controls.update();
   }
+  
+  focusCameraPos.copy(defaultCameraPos);
+  focusTargetPos.set(0, 0, 0);
+  focusActive = true;
+  controls.enabled = true;
 }
 
 resumeBtn.addEventListener('click', resumeOrbit);
@@ -915,47 +908,15 @@ window.addEventListener("touchstart", (event) => {
 }, { passive: false });
 
 function focusOnMarker(marker) {
-  controls.enabled = false;
-
-  const worldPos = new THREE.Vector3();
-  marker.getWorldPosition(worldPos);
-
-  const moonPos = moonGroup.position;
-  const direction = worldPos.clone().sub(moonPos).normalize();
-  const distance = 2.5; 
-  const cameraTargetPos = moonPos.clone().add(direction.multiplyScalar(distance));
-
-  if (window.gsap) {
-    gsap.killTweensOf(camera.position);
-    gsap.killTweensOf(controls.target);
-
-    gsap.to(camera.position, {
-      duration: 1.5,
-      x: cameraTargetPos.x,
-      y: cameraTargetPos.y,
-      z: cameraTargetPos.z,
-      ease: "power2.out",
-      onComplete: () => {
-        controls.enabled = true;
-      }
-    });
-
-    controls.target.copy(worldPos);
-    
-    gsap.to(controls.target, {
-      duration: 1.5,
-      x: worldPos.x,
-      y: worldPos.y,
-      z: worldPos.z,
-      ease: "power2.out",
-      onUpdate: () => controls.update()
-    });
-  } else {
-    camera.position.copy(cameraTargetPos);
-    controls.target.copy(worldPos);
-    controls.update();
-    controls.enabled = true;
-  }
+  const markerWorldPos = marker.getWorldPosition(new THREE.Vector3());
+  const distance = isMobile ? 3.8 : 3.2;
+  const desiredCameraPos = markerWorldPos.clone().normalize().multiplyScalar(distance);
+  
+  focusCameraPos.copy(desiredCameraPos);
+  focusTargetPos.copy(markerWorldPos);
+  
+  focusActive = true;
+  controls.enabled = true;
 }
 
 window.addEventListener('keydown', (e) => {
@@ -1085,16 +1046,15 @@ function animate() {
     }
   }
 
-  // 1. Earth Orbit System
+  // 1. Moon Auto-Rotation & Earth Rotation
   if (!isPaused) {
-    orbitAngle += 0.002;
-    moonGroup.position.set(
-      earthPos.x + Math.cos(orbitAngle) * moonOrbitRadius,
-      earthPos.y, 
-      earthPos.z + Math.sin(orbitAngle) * moonOrbitRadius
-    );
+    orbitAngle += 0.002; // Keep for phase calculations if needed
     
-    moonGroup.lookAt(earthPos);
+    // Moon auto-rotation ONLY when user is not interacting and not focusing
+    if (!userIsInteracting && !focusActive) {
+      moonGroup.rotation.y += 0.0008;
+    }
+    
     earth.rotation.y += 0.001;
     if (clouds) clouds.rotation.y += 0.0015;
   }
@@ -1209,6 +1169,18 @@ function animate() {
       m.core.material.emissiveIntensity += (target - current) * 0.1;
     }
   });
+
+  if (focusActive) {
+    camera.position.lerp(focusCameraPos, 0.035);
+    controls.target.lerp(focusTargetPos, 0.035);
+
+    const camDone = camera.position.distanceTo(focusCameraPos) < 0.03;
+    const targetDone = controls.target.distanceTo(focusTargetPos) < 0.03;
+
+    if (camDone && targetDone) {
+      focusActive = false;
+    }
+  }
 
   controls.update(); 
   renderer.render(scene, camera);

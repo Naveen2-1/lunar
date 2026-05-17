@@ -143,11 +143,11 @@
       position: absolute;
       bottom: 20px;
       right: 20px;
-      background: rgba(40, 50, 70, 0.8);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
       color: white;
       padding: 10px 18px;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
       font-family: inherit;
       font-size: 0.9rem;
@@ -360,6 +360,9 @@
       color: white;
       font-family: 'Orbitron', 'Inter', sans-serif;
     }
+    #loadingScreen.hidden .loader-content {
+      pointer-events: none;
+    }
     .loader-content h1 {
       font-size: 2.2rem;
       margin-bottom: 10px;
@@ -411,6 +414,9 @@
       pointer-events: auto;
       animation: slideUp 0.8s ease-out;
     }
+    #heroSection.hidden .hero-content {
+      pointer-events: none;
+    }
     @keyframes slideUp {
       from {
         opacity: 0;
@@ -459,7 +465,7 @@
     /* ── CREDIT BADGE ───────────────────────────── */
     #creditBadge {
       position: fixed;
-      bottom: 18px;
+      bottom: 80px;
       right: 18px;
       z-index: 50;
       padding: 10px 14px;
@@ -776,6 +782,8 @@
 
   <button id="perf-mode-btn">⚡ Perf: OFF</button>
   <div id="fps-counter"></div>
+
+  <button id="resume-orbit-btn">Resume Orbit</button>
 
   <div id="tooltip"></div>
   
