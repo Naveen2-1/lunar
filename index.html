@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Moon Viewer — Advanced Explorer</title>
+  <title>Lunar Exploration Atlas | 3D Moon Missions</title>
+  <meta name="description" content="Interactive 3D Moon mission atlas featuring Apollo landing sites, Chandrayaan-3 visualization, Luna missions, and lunar exploration history.">
+  <meta name="keywords" content="3D Moon missions, Apollo landing sites, Chandrayaan-3 visualization, Interactive lunar atlas, Moon exploration, Lunar missions">
+  <meta property="og:title" content="Lunar Exploration Atlas">
+  <meta property="og:description" content="Explore Moon missions interactively in 3D.">
+  <meta property="og:type" content="website">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; overflow: hidden; font-family: 'Inter', sans-serif; color: white; }
@@ -334,6 +339,154 @@
     .light-terminator { background: rgba(180,140,255,0.15); color: #b48cff; }
     .light-night    { background: rgba(100,120,180,0.15); color: #7888bb; }
 
+    /* ── LOADING SCREEN ───────────────────────────── */
+    #loadingScreen {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #111827, #000000);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1s ease;
+      pointer-events: auto;
+    }
+    #loadingScreen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loader-content {
+      text-align: center;
+      color: white;
+      font-family: 'Orbitron', 'Inter', sans-serif;
+    }
+    .loader-content h1 {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+      font-weight: 700;
+    }
+    #loadingText {
+      opacity: 0.7;
+      font-size: 1rem;
+      animation: fadeInOut 1.2s infinite;
+    }
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      margin: 20px auto;
+      border: 3px solid rgba(0, 212, 255, 0.2);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── HERO SECTION ───────────────────────────────── */
+    #heroSection {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      transition: opacity 1s ease;
+    }
+    #heroSection.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hero-content {
+      text-align: center;
+      max-width: 700px;
+      padding: 20px;
+      color: white;
+      pointer-events: auto;
+      animation: slideUp 0.8s ease-out;
+    }
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .hero-content h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-family: 'Orbitron', 'Inter', sans-serif;
+      margin-bottom: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .hero-content p {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      opacity: 0.85;
+      margin-bottom: 30px;
+      font-family: 'Inter', sans-serif;
+    }
+    #enterExperienceBtn {
+      padding: 14px 32px;
+      border-radius: 999px;
+      border: none;
+      background: #00d4ff;
+      color: black;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      font-family: 'Inter', sans-serif;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+    #enterExperienceBtn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    }
+    #enterExperienceBtn:active {
+      transform: scale(0.98);
+    }
+
+    /* ── CREDIT BADGE ───────────────────────────── */
+    #creditBadge {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 50;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      color: rgba(255,255,255,0.82);
+      font-size: 0.78rem;
+      line-height: 1.4;
+      font-family: Inter, sans-serif;
+      box-shadow: 0 0 20px rgba(0,0,0,0.25);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: auto;
+    }
+    #creditBadge:hover {
+      transform: translateY(-2px);
+    }
+    #creditBadge a {
+      color: #7dd3fc;
+      text-decoration: none;
+    }
+    #creditBadge a:hover {
+      text-decoration: underline;
+    }
+
     /* Fullscreen Image Viewer */
     #fullscreenViewer {
       position: fixed;
@@ -509,12 +662,85 @@
         bottom: 12px;
         right: 12px;
       }
+
+      /* Mobile: Hero section */
+      .hero-content h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+      .hero-content p {
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+      #enterExperienceBtn {
+        padding: 12px 28px;
+        font-size: 0.95rem;
+      }
+
+      /* Mobile: Creator section */
+      #creatorSection {
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        max-width: none;
+        width: calc(100% - 40px);
+      }
+      #creatorSection h3 {
+        font-size: 0.95rem;
+      }
+      #creatorSection p {
+        font-size: 0.85rem;
+      }
+
+      /* Mobile: Credit badge */
+      #creditBadge {
+        bottom: 12px;
+        right: 12px;
+        padding: 8px 11px;
+        font-size: 0.71rem;
+        border-radius: 12px;
+      }
+
+      /* Mobile: Loading screen */
+      .loader-content h1 {
+        font-size: 1.8rem;
+      }
+      #loadingText {
+        font-size: 0.9rem;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+      }
     }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
+
+  <!-- LOADING SCREEN -->
+  <div id="loadingScreen">
+    <div class="loader-content">
+      <h1>Lunar Exploration Atlas</h1>
+      <div class="spinner"></div>
+      <p id="loadingText">Initializing Lunar Systems...</p>
+    </div>
+  </div>
+
+  <!-- HERO / LANDING SECTION -->
+  <div id="heroSection">
+    <div class="hero-content">
+      <h1>Lunar Exploration Atlas</h1>
+      <p>Explore real Moon missions in an interactive 3D lunar experience featuring Apollo, Luna, Chandrayaan, Chang'e, and more.</p>
+      <button id="enterExperienceBtn">Enter Experience</button>
+    </div>
+  </div>
+
+  <!-- CREDIT BADGE -->
+  <div id="creditBadge">
+    <div>Crafted with guidance by G Naveen</div>
+    <a href="https://www.naveencloud.dev" target="_blank" rel="noopener noreferrer">naveencloud.dev</a>
+  </div>
 
   <!-- Expanded Top HUD Telemetry -->
   <div id="top-center-container">

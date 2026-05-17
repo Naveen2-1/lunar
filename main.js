@@ -416,6 +416,10 @@ loader.load('./models/moon.glb', (gltf) => {
         moonGroup.add(createMarker(m, moonRadius));
       });
       updateVisibleMissions();
+      
+      // Mark Moon as loaded and check if scene is ready
+      moonGLBLoaded = true;
+      checkSceneReady();
     })
     .catch(err => console.error('Failed to load missions:', err));
 
@@ -998,6 +1002,58 @@ if (isMobile) {
   window.addEventListener('load', () => applyPerformanceMode(true));
 }
 
+// ── Loading Screen & Hero Section UI ────────────────────────────
+const loadingScreen = document.getElementById('loadingScreen');
+const heroSection = document.getElementById('heroSection');
+const enterExperienceBtn = document.getElementById('enterExperienceBtn');
+const loadingText = document.getElementById('loadingText');
+
+let sceneReady = false;
+let moonGLBLoaded = false;
+
+const loadingMessages = [
+  "Initializing Lunar Systems...",
+  "Loading Moon Surface...",
+  "Mapping Apollo Missions...",
+  "Preparing Interactive Atlas..."
+];
+
+let currentMessageIndex = 0;
+let messageChangeTime = 0;
+
+function updateLoadingMessage() {
+  const now = Date.now();
+  if (now - messageChangeTime > 1200) {
+    currentMessageIndex = (currentMessageIndex + 1) % loadingMessages.length;
+    loadingText.textContent = loadingMessages[currentMessageIndex];
+    messageChangeTime = now;
+  }
+}
+
+function hideLoadingScreen() {
+  if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+    loadingScreen.classList.add('hidden');
+    sceneReady = true;
+  }
+}
+
+// Enter Experience button handler
+if (enterExperienceBtn) {
+  enterExperienceBtn.addEventListener('click', () => {
+    if (heroSection) {
+      heroSection.classList.add('hidden');
+    }
+  });
+}
+
+// Hide loading screen when all systems are ready
+function checkSceneReady() {
+  if (globalMoonSurface && moonGLBLoaded && !sceneReady) {
+    // Give 800ms for final renders
+    setTimeout(hideLoadingScreen, 800);
+  }
+}
+
 // ── Render Loop ──────────────────────────────────────────────────
 const clock = new THREE.Clock();
 
@@ -1005,6 +1061,11 @@ function animate() {
   requestAnimationFrame(animate);
   frame++;
   frameCount++;
+
+  // Update loading screen messages if not yet hidden
+  if (!sceneReady) {
+    updateLoadingMessage();
+  }
 
   // Mobile animation throttle: skip every other frame to reduce GPU load
   if (isMobile && frame % 2 === 0) {
